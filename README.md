@@ -6,20 +6,20 @@ To cite the paper:
 To cite the code:
 
 Modules version
-pandas 2.1.4
-numpy 1.26.3
-matplotlib 3.8.0
-pathlib 1.0.1
-tensorflow 2.14
-pywavelets 1.5.0
-tslearn 0.6.2
-joblib 1.2.0
-functools 1.6.4
-scikit-image 0.20.0
-scikit-learn 1.2.2
-plotnine 0.12.4
-seaborn 0.13.2
-keras 2.14
-kears-tcn 3.5.0
+pandas 2.1.4 \
+numpy 1.26.3 \
+matplotlib 3.8.0 \
+pathlib 1.0.1 \
+tensorflow 2.14 \
+pywavelets 1.5.0 \
+tslearn 0.6.2 \
+joblib 1.2.0 \
+functools 1.6.4 \
+scikit-image 0.20.0 \
+scikit-learn 1.2.2 \
+plotnine 0.12.4 \
+seaborn 0.13.2 \
+keras 2.14 \
+kears-tcn 3.5.0 \
 
 Python 3.11.5
