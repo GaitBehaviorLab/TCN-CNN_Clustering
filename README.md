@@ -5,7 +5,7 @@ Use Temporal Convolutional Network and Convolutional Neural Network to cluster g
 To cite the paper:
 To cite the code:
 
-Modules version
+Modules version \
 pandas 2.1.4 \
 numpy 1.26.3 \
 matplotlib 3.8.0 \
