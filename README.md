@@ -20,6 +20,6 @@ scikit-learn 1.2.2 \
 plotnine 0.12.4 \
 seaborn 0.13.2 \
 keras 2.14 \
-kears-tcn 3.5.0 \
+kears-tcn 3.5.0 
 
 Python 3.11.5
