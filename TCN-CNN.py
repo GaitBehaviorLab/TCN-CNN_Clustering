@@ -217,17 +217,11 @@ def TCN_CNN(ii,ID_with_labels,df):
     
     seq_gen_test = (list(gen_sequence(df_test[df_test['ID']==id], sequence_length, sequence_cols))
                for id in df_test['ID'].unique())
-    seq_array_test = np.concatenate(list(seq_gen_test)).astype(np.float32)
-    #seq_array_test.shape
+    seq_array_test = np.concatenate(list(seq_gen_test)).astype(np.float32)  
     
-    
-    # In[21]:
-    
-    
+   
     seq_array_total=np.concatenate((seq_array,seq_array_test))
-    
-    
-    
+           
     def plot_model_performance_curves(history):
         fig = plt.figure(figsize=(12,5))
     
@@ -508,7 +502,7 @@ gg9 = (
     + geom_point()
     + plotnine.xlab('dim 1')
     + plotnine.ylab('dim 2')
-    + plotnine.ggtitle('MDS 5 + gaussian mixture')
+    + plotnine.ggtitle('MDS+GM')
     + scale_shape_manual(mixed_shapes,labels = ['Control','Stroke'],name = 'Group')
     + scale_color_discrete(labels=['C1','C2','C3','C4','C5'],name = 'Cluster')
 )
@@ -518,63 +512,63 @@ gg9.save('mds5-GM.pdf',dpi = 1200)
 # Figure cluster membership probability 
 gg10 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(0)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
-    + geom_point()
-    + plotnine.xlab('dim 1')
-    + plotnine.ylab('dim 2')
-    + plotnine.ggtitle('MDS 5 + gaussian mixture + cluster 0 ')
+    + geom_point(size=4)
+    + plotnine.xlab('MDS dimension 1')
+    + plotnine.ylab('MDS dimension 2')
+    + plotnine.ggtitle('P(S1)')
     + scale_shape_manual(mixed_shapes,guide=False)
-    + scale_color_cmap(cmap_name="viridis")
+    + scale_color_cmap(cmap_name="brg")
 )
 gg10.save('mds5-GM_C0.png',dpi = 1200)
 gg10.save('mds5-GM_C0.pdf',dpi = 1200)
 
 gg10 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(1)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
-    + geom_point()
-    + plotnine.xlab('dim 1')
-    + plotnine.ylab('dim 2')
-    + plotnine.ggtitle('MDS 5 + gaussian mixture + cluster 1 ')
+    + geom_point(size=4)
+    + plotnine.xlab('MDS dimension 1')
+    + plotnine.ylab('MDS dimension 2')
+    + plotnine.ggtitle('P(C2)')
     + scale_shape_manual(mixed_shapes,guide=False)
-    + scale_color_cmap(cmap_name="viridis")
+    + scale_color_cmap(cmap_name="brg")
 )
 gg10.save('mds5-GM_C1.png',dpi = 1200)
 gg10.save('mds5-GM_C1.pdf',dpi = 1200)
 
 gg10 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(2)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
-    + geom_point()
-    + plotnine.xlab('dim 1')
-    + plotnine.ylab('dim 2')
-    + plotnine.ggtitle('MDS 5 + gaussian mixture + cluster 2 ')
+    + geom_point(size=4)
+    + plotnine.xlab('MDS dimension 1')
+    + plotnine.ylab('MDS dimension 2')
+    + plotnine.ggtitle('P(S2)')
     + scale_shape_manual(mixed_shapes,guide=False)
-    + scale_color_cmap(cmap_name="viridis")
+    + scale_color_cmap(cmap_name="brg")
 )
 gg10.save('mds5-GM_C2.png',dpi = 1200)
 gg10.save('mds5-GM_C2.pdf',dpi = 1200)
 
 gg10 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(3)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
-    + geom_point()
-    + plotnine.xlab('dim 1')
-    + plotnine.ylab('dim 2')
-    + plotnine.ggtitle('MDS 5 + gaussian mixture + cluster 3 ')
+    + geom_point(size=4)
+    + plotnine.xlab('MDS dimension 1')
+    + plotnine.ylab('MDS dimension 2')
+    + plotnine.ggtitle('P(S3)')
     + scale_shape_manual(mixed_shapes,guide=False)
-    + scale_color_cmap(cmap_name="viridis")
+    + scale_color_cmap(cmap_name="brg")
 )
 gg10.save('mds5-GM_C3.png',dpi = 1200)
 gg10.save('mds5-GM_C3.pdf',dpi = 1200)
 
 gg10 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(4)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
-    + geom_point()
-    + plotnine.xlab('dim 1')
-    + plotnine.ylab('dim 2')
-    + plotnine.ggtitle('MDS 5 + gaussian mixture + cluster 4 ')
+    + geom_point(size=4)
+    + plotnine.xlab('MDS dimension 1')
+    + plotnine.ylab('MDS dimension 2')
+    + plotnine.ggtitle('P(C1)')
     + scale_shape_manual(mixed_shapes,guide=False)
-    + scale_color_cmap(cmap_name="viridis")
+    + scale_color_cmap(cmap_name="brg")
 )
 gg10.save('mds5-GM_C4.png',dpi = 1200)
-gg10.save('mds5-GM_C3.pdf',dpi = 1200)
+gg10.save('mds5-GM_C4.pdf',dpi = 1200)
 
 # higher res
 sns.set_theme(rc={"figure.dpi": 1200})
