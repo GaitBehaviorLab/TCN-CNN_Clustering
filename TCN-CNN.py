@@ -258,8 +258,6 @@ def TCN_CNN(ii,ID_with_labels,df):
         temp=temp.loc[:, ~temp.columns.isin(['ID', 'label','code'])]
         X_test.append(temp.values)
     X_test=np.array(X_test)
-            
-    
                       
     rescale_size = 64 # pixel resoltion of each image (W x H)
     n_scales = 64 # determine the max scale size
@@ -274,20 +272,16 @@ def TCN_CNN(ii,ID_with_labels,df):
     sequence_cols=['NP_Ankle_Abd_Add', 'NP_Ankle_Flex_Ext', 'NP_Knee_Flex_Ext',
            'P_Ankle_Abd_Add', 'P_Ankle_Flex_Ext', 'P_Knee_Flex_Ext']
     
-     
     seq_gen = (list(gen_sequence(df_train[df_train['ID']==id], sequence_length, sequence_cols))
                for id in df_train['ID'].unique())
     seq_array = np.concatenate(list(seq_gen)).astype(np.float32)
-    
     
     seq_gen_test = (list(gen_sequence(df_test[df_test['ID']==id], sequence_length, sequence_cols))
                for id in df_test['ID'].unique())
     seq_array_test = np.concatenate(list(seq_gen_test)).astype(np.float32)  
     
-       
     seq_array_total=np.concatenate((seq_array,seq_array_test))
            
-    
     #### combine CNN and TCN 
     input_CNN_shape = (X_train_cwt.shape[1], X_train_cwt.shape[2], X_train_cwt.shape[3])
     cnn_model = build_cnn_model("relu", input_CNN_shape)
@@ -331,42 +325,10 @@ def TCN_CNN(ii,ID_with_labels,df):
     encoder = Model(inputs = combined_model.input, outputs = bottleneck) # cluster on array of 101 features
     encoded = encoder.predict([X_total_cwt,seq_array_total])
      
-    
+    #encode test set
     encoded2 = combined_model.predict([X_test_cwt,seq_array_test]).round()
     confusion_full_test = confusion_matrix(y_test, encoded2, normalize='true')
-    
-    #encoded5 = combined_model.predict([X_total_cwt,seq_array_total]).round()
-    #confusion_full_total = confusion_matrix(y, encoded5, normalize='true')
-    
-    
-    opt = tf.keras.optimizers.Adam(learning_rate=0.0002);
-    bottleneck3 = Dense(101, activation='relu')(cnn_model.output)      
-    bottleneck3 = Dense(101, activation='relu')(bottleneck3) # output to cluster 
-    fully_connected3 = Dense(1, activation='sigmoid')(bottleneck3)
-    encoder3 = Model(inputs = cnn_model.input, outputs = fully_connected3) # cluster on array of 101 features
-    encoder3.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
-    encoder3.fit(X_train_cwt,y_train,epochs=100,  verbose=0)
-    
-    encoded3 = encoder3.predict(X_test_cwt).round()
-    confusion_cnn_test = confusion_matrix(y_test, encoded3, normalize='true')
-        
-    
-    
-    opt = tf.keras.optimizers.Adam(learning_rate=0.0002);
-    bottleneck4 = Dense(101, activation='relu')(TCN_model.output)      
-    bottleneck4 = Dense(101, activation='relu')(bottleneck4) # output to cluster 
-    fully_connected4 = Dense(1, activation='sigmoid')(bottleneck4)
-    encoder4 = Model(inputs = TCN_model.input, outputs = fully_connected4) # cluster on array of 101 features
-    encoder4.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
-    encoder4.fit(seq_array,y_train,epochs=100,  verbose=0)
-    
-    encoded4 = encoder4.predict(seq_array_test).round()
-    confusion_tcn_test = confusion_matrix(y_test, encoded4, normalize='true')
-    
-
-
-    
-    
+   
     ts_cs = []   
     cluster_index = [] 
      
@@ -394,13 +356,13 @@ def TCN_CNN(ii,ID_with_labels,df):
         
     ts_cs_merge.rename(columns={"0_x": "clusters", "0_y": "ts_inertia"},inplace=True)
     
-    return ts_cs_merge, cluster5_map_ts_km,y,confusion_full_test,confusion_tcn_test,confusion_cnn_test
+    return ts_cs_merge, cluster5_map_ts_km,y,confusion_full_test
    
 start_time = time.time()
 warnings.filterwarnings("ignore", message="A worker stopped while some jobs were given to the executor.", category=UserWarning)
 n_run = 10 # number of iterations
 result = Parallel(n_jobs=20)(delayed(TCN_CNN)(ii, ID_with_labels, df) for ii in range(1, n_run)) # to go faster (10000 iterations in about 14 hours)
-all_ts_cs,all_cluster5_ts_km,y,confusion_full_test,confusion_tcn_test,confusion_cnn_test = zip(*result)
+all_ts_cs,all_cluster5_ts_km,y,confusion_full_test = zip(*result)
 
 
 all_ts_cs_concatenated = np.concatenate(all_ts_cs, axis=0)
@@ -444,7 +406,6 @@ all_cluster5_ts_km = list(all_cluster5_ts_km)
 # Merge the DataFrames using reduce and specifying custom suffixes
 cluster5_merge_ts_km = reduce(lambda  left,right: pd.merge(left,right,on=['ID'],
                                             how='inner'), all_cluster5_ts_km)
-
 # build similarity and dissimilarity matrices
 matrix5_ts_km = cluster5_merge_ts_km.drop('ID', axis=1).to_numpy()
 N = len(matrix5_ts_km)
@@ -489,17 +450,15 @@ embedding_5 = mds.fit(disimilarity5_ts_km).embedding_
 embedding_5 = pd.DataFrame(data=embedding_5)
 
 # Find random state/model that minimizes BIC
-gm5_BIC = []
+gm5_AIC = []
 gm5_sil = []
 for i in range(n_run):
     gm5 = GaussianMixture(random_state=i,n_components=5,n_init=10,tol=1e-3,max_iter=100,init_params='k-means++',covariance_type='full',reg_covar=1e-4).fit(embedding_5)
-    gm5_BIC.append(gm5.aic(embedding_5))
+    gm5_AIC.append(gm5.aic(embedding_5))
     labels_gm=gm5.predict(embedding_5)
     gm5_sil.append(silhouette_score(embedding_5, labels_gm))
 
-index_min5 = min(range(len(gm5_BIC)), key=gm5_BIC.__getitem__)
-index_max5 = max(range(len(gm5_sil)), key=gm5_sil.__getitem__)
-
+index_min5 = min(range(len(gm5_AIC)), key=gm5_AIC.__getitem__)
 
 gm5 = GaussianMixture(random_state=index_min5,n_components=5,n_init=10,tol=1e-3,max_iter=100,init_params='k-means++',covariance_type='full',reg_covar=1e-4).fit(embedding_5)
 gm_proba5 = gm5.predict_proba(embedding_5)
@@ -512,7 +471,7 @@ kinematics_5cluster_TCN_GM = pd.merge(kinematics_5cluster_TCN_GM,pd.DataFrame(da
 kinematics_5cluster_TCN_GM.rename(columns={0: 'P(0)',1: 'P(1)', 2: 'P(2)',3:'P(3)',4:'P(4)'},inplace=True)
 
 # Figure MDS with true label
-gg7 = (
+gg1 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = "factor(kinematics_5cluster_TCN_GM['true_label'])",shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
     + geom_point(size=2)
     + plotnine.xlab('dim 1')
@@ -522,11 +481,11 @@ gg7 = (
     + scale_shape_manual(mixed_shapes,labels = ['Control','Stroke'],name = 'Group')
     + scale_color_discrete(labels=['C1','C2'],name = 'Cluster')
 )
-gg7.save('mds5-stroketocontrol.png',dpi = 1200)
-gg7.save('mds5-stroketocontrol.pdf',dpi = 1200)
+gg1.save('mds5-stroketocontrol.png',dpi = 1200)
+gg1.save('mds5-stroketocontrol.pdf',dpi = 1200)
 
 # Figure MDS with 5 component gaussian mixture
-gg9 = (
+gg2 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = "factor(kinematics_5cluster_TCN_GM['cluster'])",shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
     + geom_point()
     + plotnine.xlab('dim 1')
@@ -535,11 +494,11 @@ gg9 = (
     + scale_shape_manual(mixed_shapes,labels = ['Control','Stroke'],name = 'Group')
     + scale_color_discrete(labels=['C1','C2','C3','C4','C5'],name = 'Cluster')
 )
-gg9.save('mds5-GM.png',dpi = 1200)
-gg9.save('mds5-GM.pdf',dpi = 1200)
+gg2.save('mds5-GM.png',dpi = 1200)
+gg2.save('mds5-GM.pdf',dpi = 1200)
 
 # Figure cluster membership probability 
-gg10 = (
+gg3 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(0)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
     + geom_point(size=4)
     + plotnine.xlab('MDS dimension 1')
@@ -548,10 +507,10 @@ gg10 = (
     + scale_shape_manual(mixed_shapes,guide=False)
     + scale_color_cmap(cmap_name="brg")
 )
-gg10.save('mds5-GM_C0.png',dpi = 1200)
-gg10.save('mds5-GM_C0.pdf',dpi = 1200)
+gg3.save('mds5-GM_C0.png',dpi = 1200)
+gg3.save('mds5-GM_C0.pdf',dpi = 1200)
 
-gg10 = (
+gg4 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(1)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
     + geom_point(size=4)
     + plotnine.xlab('MDS dimension 1')
@@ -560,10 +519,10 @@ gg10 = (
     + scale_shape_manual(mixed_shapes,guide=False)
     + scale_color_cmap(cmap_name="brg")
 )
-gg10.save('mds5-GM_C1.png',dpi = 1200)
-gg10.save('mds5-GM_C1.pdf',dpi = 1200)
+gg4.save('mds5-GM_C1.png',dpi = 1200)
+gg4.save('mds5-GM_C1.pdf',dpi = 1200)
 
-gg10 = (
+gg5 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(2)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
     + geom_point(size=4)
     + plotnine.xlab('MDS dimension 1')
@@ -572,10 +531,10 @@ gg10 = (
     + scale_shape_manual(mixed_shapes,guide=False)
     + scale_color_cmap(cmap_name="brg")
 )
-gg10.save('mds5-GM_C2.png',dpi = 1200)
-gg10.save('mds5-GM_C2.pdf',dpi = 1200)
+gg5.save('mds5-GM_C2.png',dpi = 1200)
+gg5.save('mds5-GM_C2.pdf',dpi = 1200)
 
-gg10 = (
+gg6 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(3)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
     + geom_point(size=4)
     + plotnine.xlab('MDS dimension 1')
@@ -584,10 +543,10 @@ gg10 = (
     + scale_shape_manual(mixed_shapes,guide=False)
     + scale_color_cmap(cmap_name="brg")
 )
-gg10.save('mds5-GM_C3.png',dpi = 1200)
-gg10.save('mds5-GM_C3.pdf',dpi = 1200)
+gg6.save('mds5-GM_C3.png',dpi = 1200)
+gg6.save('mds5-GM_C3.pdf',dpi = 1200)
 
-gg10 = (
+gg7 = (
     ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = kinematics_5cluster_TCN_GM['P(4)'],shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
     + geom_point(size=4)
     + plotnine.xlab('MDS dimension 1')
@@ -596,11 +555,8 @@ gg10 = (
     + scale_shape_manual(mixed_shapes,guide=False)
     + scale_color_cmap(cmap_name="brg")
 )
-gg10.save('mds5-GM_C4.png',dpi = 1200)
-gg10.save('mds5-GM_C4.pdf',dpi = 1200)
-
-# higher res
-sns.set_theme(rc={"figure.dpi": 1200})
+gg7.save('mds5-GM_C4.png',dpi = 1200)
+gg7.save('mds5-GM_C4.pdf',dpi = 1200)
 
 # Figures similarity and dissimilarity matrices
 plt.cla()
@@ -619,7 +575,6 @@ pd.DataFrame(data = similarity5_ts_km).to_csv("similarity_5.csv")
 pd.DataFrame(data = disimilarity5_ts_km).to_csv("disimilarity_5.csv")
 pd.DataFrame(data = all_ts_cs_df).to_csv("inertia.csv")
 kinematics_5cluster_TCN_GM.to_csv("kinematics_5cluster_TCN_GM.csv")
-
 
 print("--- %s seconds ---" % (time.time() - start_time))
 
