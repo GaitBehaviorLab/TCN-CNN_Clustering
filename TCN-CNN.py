@@ -36,7 +36,8 @@ from plotnine import (
     geom_errorbar,
     geom_hline,
     geom_path,
-    scale_color_discrete
+    scale_color_discrete,
+    stat_ellipse
 )
 import plotnine
 import seaborn as sns
@@ -144,6 +145,28 @@ def build_cnn_model(activation, input_shape):
     #print(model.summary())     
     return model
   
+def get_ellipse_points(mean, covar, num_points=100):
+    # Eigen decomposition of the covariance matrix
+    v, w = np.linalg.eigh(covar)
+    v = 2 * np.sqrt(v)
+    u = w[0] / np.linalg.norm(w[0])
+    
+    # Generate points on a unit circle
+    t = np.linspace(0, 2 * np.pi, num_points)
+    circle = np.array([np.cos(t), np.sin(t)])
+    
+    # Transform the circle points to the ellipse points
+    ellipse = np.dot(np.diag(v), circle)
+    angle = np.arctan(u[1] / u[0])
+    rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    ellipse = np.dot(rotation_matrix, ellipse)
+    
+    # Translate the ellipse to the mean
+    ellipse[0, :] += mean[0]
+    ellipse[1, :] += mean[1]
+    
+    return ellipse.T
+
 
 #path of stroke data
 stroke_filenames=glob.glob(r"../code_10282023/post_stroke_data/ensemble/stroke/*.txt")
@@ -176,7 +199,7 @@ ID_with_labels.columns = ['ID', 'true_label']
 # all data
 df = pd.concat([pd_stroke, pd_control], axis=0)
 
-#TCN CNN function, input random seed number, true label and data, output inertia, rand index and clusters
+#TCN CNN function, input random seed number, true label and data, output inertia for elbow method, df mapping with cluster labels, true labels, confusion matrices, df with test set IDs true and predicted labels
 def TCN_CNN(ii,ID_with_labels,df):
     # new seed each loop
     seed_value = ii
@@ -356,14 +379,18 @@ def TCN_CNN(ii,ID_with_labels,df):
         
     ts_cs_merge.rename(columns={"0_x": "clusters", "0_y": "ts_inertia"},inplace=True)
     
-    return ts_cs_merge, cluster5_map_ts_km,y,confusion_full_test
+    y_test_df = pd.DataFrame(y_test,columns=['true'])
+    encoded2_df = pd.DataFrame(encoded2,columns=['predict'])
+    test_IDs_df = pd.DataFrame(test_IDs,columns=['ID'])
+    test_df= pd.concat([test_IDs_df,y_test_df , encoded2_df],  axis=1)
+    
+    return ts_cs_merge, cluster5_map_ts_km,y,confusion_full_test,test_df
    
 start_time = time.time()
 warnings.filterwarnings("ignore", message="A worker stopped while some jobs were given to the executor.", category=UserWarning)
 n_run = 10 # number of iterations
 result = Parallel(n_jobs=20)(delayed(TCN_CNN)(ii, ID_with_labels, df) for ii in range(1, n_run)) # to go faster (10000 iterations in about 14 hours)
-all_ts_cs,all_cluster5_ts_km,y,confusion_full_test = zip(*result)
-
+all_ts_cs,all_cluster5_ts_km,y,confusion_full_test,test_df = zip(*result)
 
 all_ts_cs_concatenated = np.concatenate(all_ts_cs, axis=0)
 all_ts_cs_df = pd.DataFrame(all_ts_cs_concatenated, columns=['clusters', 'ts_inertia'])
@@ -400,7 +427,6 @@ gg1 = (
 )
 gg1.save('kinematics_inertia_10000_runs_bs.pdf',dpi = 1200)
 gg1.save('kinematics_inertia_10000_runs_bs.png',dpi = 1200)
-
 
 all_cluster5_ts_km = list(all_cluster5_ts_km)
 # Merge the DataFrames using reduce and specifying custom suffixes
@@ -444,12 +470,10 @@ mixed_shapes = (
 # true label
 true_label = pd.DataFrame(data=y[1])
 
-# 5 clusters 
-# Projection of dissimiliarity in MDS latent space 
 embedding_5 = mds.fit(disimilarity5_ts_km).embedding_
 embedding_5 = pd.DataFrame(data=embedding_5)
 
-# Find random state/model that minimizes BIC
+# Find random state/model that minimizes AIC
 gm5_AIC = []
 gm5_sil = []
 for i in range(n_run):
@@ -484,16 +508,40 @@ gg1 = (
 gg1.save('mds5-stroketocontrol.png',dpi = 1200)
 gg1.save('mds5-stroketocontrol.pdf',dpi = 1200)
 
+
+
+# List to store ellipse points for each component
+all_ellipse_points = []
+# Assuming gm5 is your Gaussian Mixture Model
+means = gm5.means_
+covariances = gm5.covariances_
+for mean, covar in zip(means, covariances):
+    ellipse_points = get_ellipse_points(mean, covar)
+    all_ellipse_points.append(ellipse_points)
+    
+# Create a DataFrame to store all ellipse points
+df_list = []
+for i, ellipse in enumerate(all_ellipse_points):
+    df = pd.DataFrame(ellipse, columns=['x', 'y'])
+    df['component'] = i
+    df_list.append(df)
+
+ellipse_df = pd.concat(df_list)
+
 # Figure MDS with 5 component gaussian mixture
 gg2 = (
-    ggplot(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = "factor(kinematics_5cluster_TCN_GM['cluster'])",shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"))
-    + geom_point()
+    ggplot()
+    + geom_point(kinematics_5cluster_TCN_GM, aes(x = kinematics_5cluster_TCN_GM['x'],y = kinematics_5cluster_TCN_GM['y'],color = "factor(kinematics_5cluster_TCN_GM['cluster'])",shape = "factor(kinematics_5cluster_TCN_GM['true_label'])"),size=4,stroke=0.4)
+    
     + plotnine.xlab('dim 1')
     + plotnine.ylab('dim 2')
     + plotnine.ggtitle('MDS+GM')
     + scale_shape_manual(mixed_shapes,labels = ['Control','Stroke'],name = 'Group')
     + scale_color_discrete(labels=['C1','C2','C3','C4','C5'],name = 'Cluster')
+    + geom_path(ellipse_df, aes(x='x', y='y', group='component', color='factor(component)'),size =0.8)
 )
+print(gg2)
+
 gg2.save('mds5-GM.png',dpi = 1200)
 gg2.save('mds5-GM.pdf',dpi = 1200)
 
@@ -578,6 +626,33 @@ kinematics_5cluster_TCN_GM.to_csv("kinematics_5cluster_TCN_GM.csv")
 
 print("--- %s seconds ---" % (time.time() - start_time))
 
+temps = time.time() - start_time
 
+# Initialize a DataFrame to store the results
+all_ids_df = cluster5_merge_ts_km[['ID']]
+results_df = all_ids_df.copy()
+results_df['Incorrect_Predictions'] = 0
+results_df['Total_Predictions'] = 0
 
-         
+for df in test_df:
+    # Convert predicted labels to integers
+    df['predict'] = df['predict'].astype(int)
+    
+    # Merge with the results DataFrame using an inner join
+    merged_df = pd.merge(results_df, df, on='ID', how='inner')
+    
+    # Count incorrect predictions
+    incorrect_predictions = (merged_df['true'] != merged_df['predict']).fillna(False)
+    
+    # Update the count in the results DataFrame
+    results_df.set_index('ID', inplace=True)
+    results_df.loc[merged_df['ID'], 'Incorrect_Predictions'] += incorrect_predictions.astype(int).values
+    results_df.loc[merged_df['ID'], 'Total_Predictions'] += 1
+    results_df.reset_index(inplace=True)
+    
+results_df['Percentage_Incorrect'] = (results_df['Incorrect_Predictions'] / results_df['Total_Predictions']) * 100
+results_df['Percentage_Incorrect'] = results_df['Percentage_Incorrect'].fillna(0)  # Handle division by zero
+
+print(results_df)
+
+pd.DataFrame(data = results_df).to_csv("incorrect_prediction.csv")
