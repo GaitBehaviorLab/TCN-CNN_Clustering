@@ -5,7 +5,7 @@ Use Temporal Convolutional Network and Convolutional Neural Network to cluster g
 To read the paper: https://ieeexplore.ieee.org/document/10994322 \
 
 To cite the code: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14014263.svg)](https://doi.org/10.5281/zenodo.14014263) \
-A. Kuch, A. McKenzie, N. Schweighofer, J. Finley, Y. Wen, N. Sanchez, TCN-CNN Clustering, Github (2024). https://doi.org/10.5281/zenodo.13966219.
+A. Kuch, A. McKenzie, N. Schweighofer, J. Finley, Y. Wen, N. Sanchez, TCN-CNN Clustering, Github (2024). https://doi.org/10.5281/zenodo.11998330.
 
 Modules version \
 pandas 2.1.4 \
